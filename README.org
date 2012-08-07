@@ -1,0 +1,5 @@
+SLE
+* About
+Here is some C code for simulations of interfaces in 2D Ising model. 
+For now it can be used to produce xpm images.
+You can use netpbm or imagemagick to convert to more conventional formats. 
