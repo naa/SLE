@@ -25,6 +25,9 @@ void free_2d_array(int size, int **table){
   free(table);
 }
 
+int mod(int x, int m) {
+    return (x%m + m)%m;
+}
 
 int rand_int(int max) 
 {  
@@ -36,7 +39,7 @@ double nrand()
   return (double)rand() / (double)RAND_MAX ;
 }
 
-void init_table(int size, int **table)
+void init_table_pm_boundary(int size, int ** table)
 {
   for (int i = 0; i < size; i++) {
     for (int j = 0; j < size; j++) { 
@@ -48,21 +51,48 @@ void init_table(int size, int **table)
     }
   }
 }
+
+void init_table_no_boundary(int size, int ** table)
+{
+  for (int i = 0; i < size; i++) {
+    for (int j = 0; j < size; j++) { 
+      table[i][j] = 2 * (nrand() > 0.5) - 1;
+    }
+  }
+}
  
 int modify_cell (int size,int **table, int i, int j, double beta)
 {
-  double p1 = exp( beta * (table[i - 1][j] + table[i + 1][j] + table[i][j - 1] + table[i][j + 1]));
-  double p2 = exp(-beta * (table[i - 1][j] + table[i + 1][j] + table[i][j - 1] + table[i][j + 1]));
+  double p1 = exp( beta * (table[mod(i - 1,size)][mod(j,size)] + 
+			   table[mod(i + 1,size)][mod(j,size)] + 
+			   table[mod(i,size)][mod(j - 1,size)] + 
+			   table[mod(i,size)][mod(j + 1,size)]));
+  double p2 = exp(-beta * (table[mod(i - 1,size)][mod(j,size)] + 
+			   table[mod(i + 1,size)][mod(j,size)] + 
+			   table[mod(i,size)][mod(j - 1,size)] + 
+			   table[mod(i,size)][mod(j + 1,size)]));
   int nval = 2 * (((p1 + p2) * nrand()) < p1) - 1;
-  int res = (nval != table[i][j]);
-  table[i][j]=nval;
+  int res = (nval != table[mod(i,size)][mod(j,size)]);
+  table[mod(i,size)][mod(j,size)]=nval;
   return res;
 }
 
-void evolve_table ( int size, int** table, double beta, long long niter ) 
+void evolve_table_cyclic_boundary ( int size, int** table, double beta, long long niter ) 
 {
   int i,j;
-  init_table(size,table);
+  init_table_no_boundary(size,table);
+
+  for (long long k = 0; k < niter; k++){
+    for (i=0;i<size;i++)
+      for (j=0;j<size;j++)
+	modify_cell (size,table,i, j,beta);
+  }
+}
+
+void evolve_table_pm_boundary ( int size, int** table, double beta, long long niter ) 
+{
+  int i,j;
+  init_table_pm_boundary(size,table);
 
   for (long long k = 0; k < niter; k++){
     i=1 + rand_int(size-2);
@@ -116,6 +146,15 @@ void add_crossing_number(int size, int ** hor_interface, int ** res_table)
 	num++;
     }
   }
+}
+
+long calc_magnetization(int size, int ** table)
+{
+  long res=0;
+  for (int i=0; i<size; i++)
+    for (int j=0; j<size; j++)
+      res+=table[i][j];
+  return res;
 }
 
 void print_table (FILE* F, int size, int **table)
@@ -208,20 +247,20 @@ void print_table_as_list (FILE* F, int size,long measurements, int **table)
 
 void compute_probability(int size, double beta, long measurements,int **res) 
 {
-  long long niter=size*size*size;
+  long long niter=3*size*size;
   int **table=allocate_2d_array(size);
   //  int ** res = allocate_2d_array(size);
   int ** hint=allocate_2d_array(size);
   int ** vint=allocate_2d_array(size);
   int **interface;
 
-  evolve_table(size,table,beta, niter);
+  evolve_table_pm_boundary(size,table,beta, niter);
 
   for (long i=0; i<measurements; i++){
     interface=calc_interface(size, table,hint, vint);  
     add_crossing_number(size,hint,res);
     free_2d_array(size,interface);
-    evolve_table(size,table,beta,10*size*size);
+    evolve_table_pm_boundary(size,table,beta,50);
   }
   free_2d_array(size,table);
   free_2d_array(size,hint);
@@ -229,45 +268,126 @@ void compute_probability(int size, double beta, long measurements,int **res)
   //  return res;
 }
 
-int main()
+double measure_magnetisation(int size, double beta, int measurements)
 {
-  double beta=-0.440686854531;
-  int size=100;
-  long long niter=size*size*size;
+  long long niter=3*size*size;
   int **table=allocate_2d_array(size);
-  int ** res = allocate_2d_array(size);
-  int ** hint=allocate_2d_array(size);
-  int ** vint=allocate_2d_array(size);
-  int **interface;
+  evolve_table_cyclic_boundary(size,table,beta, niter);
+  double M=0;
+  double mc=0;
+  for (long i=0; i<measurements; i++){
+    mc=calc_magnetization(size,table);
+    M=M+mc/(size*size);
+    evolve_table_cyclic_boundary(size,table,beta,50);
+  }
 
-  evolve_table(size,table,beta, niter);
-
-  interface=calc_interface(size, table,hint, vint);  
-
-  FILE *f;
-  f=fopen("table.xpm","w");
-  print_table_xpm_simple(f,size,table);
-  fclose(f);
-  f=fopen("hint.xpm","w");
-  print_table_xpm_simple(f,size,hint);
-  fclose(f);
-  f=fopen("vint.xpm","w");
-  print_table_xpm_simple(f,size,vint);
-  fclose(f);
-
-  add_crossing_number(size,vint,res);
-  f=fopen("res.xpm","w");
-  print_table_xpm_simple(f,size,res);
-  fclose(f);
-
-  free_2d_array(size,interface);
-  //  evolve_table(size,table,beta,10*size*size);
+  char name[100];
+  sprintf(name,"d-%lf.xpm",1/beta);
+  FILE *F=fopen(name,"w");
+  print_table_xpm_simple(F,size,table);
+  fclose(F);
 
   free_2d_array(size,table);
-  free_2d_array(size,hint);
-  free_2d_array(size,vint);
+  return M/(measurements);
+}
+
+double measure_susceptibility(int size,  double beta, int measurements)
+{
+  long long niter=3*size*size;
+  int **table=allocate_2d_array(size);
+  evolve_table_cyclic_boundary(size,table,beta, niter);
+  double M=0;
+  double Msq=0;
+  double mc=0;
+  for (long i=0; i<measurements; i++){
+    mc=calc_magnetization(size,table);
+    M=M+mc;
+    Msq=Msq+mc*mc;
+    evolve_table_cyclic_boundary(size,table,beta,size);
+    //    printf("%lf %lf %lf\n",mc,M,Msq);
+  }
+  free_2d_array(size,table);
+  return beta*(Msq-M*M)/(size*size*measurements);
+}
+
+
+int main()
+{
+  double T=1.5;
+  double step=0.01;
+  int size=50;
+  srand(time(NULL));
+  printf("[");
+  for (int i=0;i<100;i++) {
+    printf("[%lf,%lf], ", T,fabs(measure_susceptibility(size,1/T,1000)));
+    T=T+step;
+  }
+  printf("]\n");
   return 0;
 }
+
+
+//  int main()
+//  {
+//    double T=1.0;
+//    double step=0.05;
+//    int size=50;
+//    srand(time(NULL));
+//  //  FILE *F=fopen("debug.xpm","w");
+//  //  int **table=allocate_2d_array(size);
+//  //  evolve_table_cyclic_boundary(size,table,1/T,20*size*size);
+//  //  print_table_xpm_simple(F,size,table);
+//  //  free_2d_array(size,table);
+//  //  fclose(F);
+//    printf("[");
+//    for (int i=0;i<80;i++) {
+//      printf("[%lf,%lf], ", T,fabs(measure_magnetisation(size,1/T,1)));
+//      T=T+step;
+//    }
+//    printf("]\n");
+//    return 0;
+//  }
+//    
+
+//int main()
+//{
+//  double beta=-0.440686854531;
+//  int size=100;
+//  long long niter=size*size*size;
+//  int **table=allocate_2d_array(size);
+//  int ** res = allocate_2d_array(size);
+//  int ** hint=allocate_2d_array(size);
+//  int ** vint=allocate_2d_array(size);
+//  int **interface;
+//
+//  evolve_table(size,table,beta, niter);
+//
+//  interface=calc_interface(size, table,hint, vint);  
+//
+//  FILE *f;
+//  f=fopen("table.xpm","w");
+//  print_table_xpm_simple(f,size,table);
+//  fclose(f);
+//  f=fopen("hint.xpm","w");
+//  print_table_xpm_simple(f,size,hint);
+//  fclose(f);
+//  f=fopen("vint.xpm","w");
+//  print_table_xpm_simple(f,size,vint);
+//  fclose(f);
+//
+//  add_crossing_number(size,vint,res);
+//  f=fopen("res.xpm","w");
+//  print_table_xpm_simple(f,size,res);
+//  fclose(f);
+//
+//  free_2d_array(size,interface);
+//  //  evolve_table(size,table,beta,10*size*size);
+//
+//  free_2d_array(size,table);
+//  free_2d_array(size,hint);
+//  free_2d_array(size,vint);
+//  return 0;
+//}
 //  
 //  int main(int argc, char **argv) 
 //  {
