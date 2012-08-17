@@ -9,3 +9,6 @@ make
 ./ising <grid size> <beta> <number of iterations> <filename>
 #+END_EXAMPLE
 All the parameters are optional
+
+*** Some links
+***** [[http://quantumtheory.physik.unibas.ch/bruder/Semesterprojekte2007/p1/index.html][Good overview on Ising model simulations]]
