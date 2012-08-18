@@ -303,7 +303,7 @@ double measure_susceptibility(int size,  double beta, int measurements)
     mc=calc_magnetization(size,table);
     M=M+mc;
     Msq=Msq+mc*mc;
-    evolve_table_cyclic_boundary(size,table,beta,size);
+    evolve_table_cyclic_boundary(size,table,beta,1);
     //    printf("%lf %lf %lf\n",mc,M,Msq);
   }
   free_2d_array(size,table);
@@ -311,15 +311,24 @@ double measure_susceptibility(int size,  double beta, int measurements)
 }
 
 
-int main()
+int main(int argc, char **argv)
 {
   double T=1.5;
   double step=0.01;
   int size=50;
+  int steps = 100;
+  long measures=10000;
+
+  if (argc>1) size= atoi(argv[1]);
+  if (argc>2) T=atof(argv[2]);
+  if (argc>3) step=atof(argv[3]);
+  if (argc>4) steps=atoi(argv[4]);
+  if (argc>5) measures=atoi(argv[5]);
+
   srand(time(NULL));
   printf("[");
-  for (int i=0;i<100;i++) {
-    printf("[%lf,%lf], ", T,fabs(measure_susceptibility(size,1/T,1000)));
+  for (int i=0;i<steps;i++) {
+    printf("[%lf,%lf], ", T,fabs(measure_susceptibility(size,1/T,measures)));
     T=T+step;
   }
   printf("]\n");
