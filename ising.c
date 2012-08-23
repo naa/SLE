@@ -80,12 +80,11 @@ int modify_cell (int size,int **table, int i, int j, double beta)
 void evolve_table_cyclic_boundary ( int size, int** table, double beta, long long niter ) 
 {
   int i,j;
-  init_table_no_boundary(size,table);
 
   for (long long k = 0; k < niter; k++){
     for (i=0;i<size;i++)
       for (j=0;j<size;j++)
-	modify_cell (size,table,i, j,beta);
+	modify_cell (size,table,rand_int(size-1), rand_int(size-1),beta);
   }
 }
 
@@ -272,6 +271,7 @@ double measure_magnetisation(int size, double beta, int measurements)
 {
   long long niter=3*size*size;
   int **table=allocate_2d_array(size);
+  init_table_no_boundary(size,table);
   evolve_table_cyclic_boundary(size,table,beta, niter);
   double M=0;
   double mc=0;
@@ -295,6 +295,8 @@ double measure_susceptibility(int size,  double beta, int measurements)
 {
   long long niter=3*size*size;
   int **table=allocate_2d_array(size);
+  init_table_no_boundary(size,table);
+
   evolve_table_cyclic_boundary(size,table,beta, niter);
   double M=0;
   double Msq=0;
