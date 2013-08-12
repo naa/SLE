@@ -293,7 +293,7 @@ double measure_magnetisation(int size, double beta, int measurements)
 
 double measure_susceptibility(int size,  double beta, int measurements)
 {
-  long long niter=3*size*size;
+  long long niter=3*100000;//3*size*size;
   int **table=allocate_2d_array(size);
   init_table_no_boundary(size,table);
 
@@ -302,16 +302,54 @@ double measure_susceptibility(int size,  double beta, int measurements)
   double Msq=0;
   double mc=0;
   for (long i=0; i<measurements; i++){
-    mc=calc_magnetization(size,table);
+    mc=((double)calc_magnetization(size,table))/(size*size);
     M=M+mc;
     Msq=Msq+mc*mc;
-    evolve_table_cyclic_boundary(size,table,beta,1);
+    evolve_table_cyclic_boundary(size,table,beta,1000);
     //    printf("%lf %lf %lf\n",mc,M,Msq);
   }
   free_2d_array(size,table);
-  return beta*(Msq-M*M)/(size*size*measurements);
+  return beta*(Msq-M*M)/measurements;
 }
 
+double measure_Ul(int size,  double beta, int measurements)
+{
+  long long niter=3*size*size;
+  int **table=allocate_2d_array(size);
+  init_table_no_boundary(size,table);
+
+  evolve_table_cyclic_boundary(size,table,beta, niter);
+  double M=0;
+  double Msq=0;
+  double Mfourth=0;
+  double mc=0;
+  for (long i=0; i<measurements; i++){
+    mc=((double)calc_magnetization(size,table))/(size*size);
+    M=M+mc;
+    Msq=Msq+mc*mc;
+    Mfourth=Mfourth+mc*mc*mc*mc;
+    evolve_table_cyclic_boundary(size,table,beta,size*size);
+  }
+  free_2d_array(size,table);
+  M=M/measurements;
+  Msq=Msq/measurements; 
+  Mfourth=Mfourth/measurements;
+
+  double res=1.0-1.0/3.0*Mfourth/(Msq*Msq);
+  return res;
+}
+
+void print_Ul(double T, double step, long steps, long measures, long size) {
+  printf("U%ld:[",size);
+  double Ul1,Ul2;
+  for (int i=0;i<steps;i++) {
+    Ul1=measure_Ul(size,T,measures);
+    Ul2=measure_Ul(200/size,T,measures);
+    printf("[%lf,%lf], ", T,Ul1/Ul2);
+    T=T+step;
+  }
+  printf("]\n");
+}
 
 int main(int argc, char **argv)
 {
@@ -328,12 +366,10 @@ int main(int argc, char **argv)
   if (argc>5) measures=atoi(argv[5]);
 
   srand(time(NULL));
-  printf("[");
-  for (int i=0;i<steps;i++) {
-    printf("[%lf,%lf], ", T,fabs(measure_susceptibility(size,1/T,measures)));
-    T=T+step;
-  }
-  printf("]\n");
+
+  print_Ul(1/T,step,steps, measures, size);
+  print_Ul(1/T,step,steps, measures, 2*size);
+
   return 0;
 }
 
