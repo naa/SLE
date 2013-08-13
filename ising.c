@@ -314,7 +314,7 @@ double measure_susceptibility(int size,  double beta, int measurements)
 
 double measure_Ul(int size,  double beta, int measurements)
 {
-  long long niter=3*size*size;
+  long long niter=size*size*size;
   int **table=allocate_2d_array(size);
   init_table_no_boundary(size,table);
 
@@ -328,7 +328,7 @@ double measure_Ul(int size,  double beta, int measurements)
     M=M+mc;
     Msq=Msq+mc*mc;
     Mfourth=Mfourth+mc*mc*mc*mc;
-    evolve_table_cyclic_boundary(size,table,beta,size*size);
+    evolve_table_cyclic_boundary(size,table,beta,size);
   }
   free_2d_array(size,table);
   M=M/measurements;
@@ -339,15 +339,18 @@ double measure_Ul(int size,  double beta, int measurements)
   return res;
 }
 
-void print_Ul(double T, double step, long steps, long measures, long size) {
-  printf("U%ld:[",size);
+void print_Ul(double T, double step, long steps, long measures, long size1, long size2) {
+  printf("U%ld_%ld:[",size1,size2);
   double Ul1,Ul2;
+  Ul1=measure_Ul(size1,1/T,measures);
+  Ul2=measure_Ul(size2,1/T,measures);
   for (int i=0;i<steps;i++) {
-    Ul1=measure_Ul(size,T,measures);
-    Ul2=measure_Ul(200/size,T,measures);
     printf("[%lf,%lf], ", T,Ul1/Ul2);
     T=T+step;
+    Ul1=measure_Ul(size1,1/T,measures);
+    Ul2=measure_Ul(size2,1/T,measures);
   }
+  printf("[%lf,%lf] ", T,Ul1/Ul2);
   printf("]\n");
 }
 
@@ -367,8 +370,8 @@ int main(int argc, char **argv)
 
   srand(time(NULL));
 
-  print_Ul(1/T,step,steps, measures, size);
-  print_Ul(1/T,step,steps, measures, 2*size);
+  print_Ul(T,step,steps, measures, size,2*size);
+  print_Ul(T,step,steps, measures, 2*size,4*size);
 
   return 0;
 }
