@@ -56,7 +56,8 @@ void init_table_no_boundary(int size, int ** table)
 {
   for (int i = 0; i < size; i++) {
     for (int j = 0; j < size; j++) { 
-      table[i][j] = 2 * (nrand() > 0.5) - 1;
+      //      table[i][j] = 2 * (nrand() > 0.5) - 1;
+      table[i][j] = 1;//-1+2*((i+j)%2);
     }
   }
 }
@@ -84,7 +85,8 @@ void evolve_table_cyclic_boundary ( int size, int** table, double beta, long lon
   for (long long k = 0; k < niter; k++){
     for (i=0;i<size;i++)
       for (j=0;j<size;j++)
-	modify_cell (size,table,rand_int(size-1), rand_int(size-1),beta);
+	//	modify_cell (size,table,rand_int(size-1), rand_int(size-1),beta);
+	modify_cell (size,table,i,j,beta);
   }
 }
 
@@ -328,7 +330,7 @@ double measure_Ul(int size,  double beta, int measurements)
     M=M+mc;
     Msq=Msq+mc*mc;
     Mfourth=Mfourth+mc*mc*mc*mc;
-    evolve_table_cyclic_boundary(size,table,beta,size);
+    evolve_table_cyclic_boundary(size,table,beta,1);
   }
   free_2d_array(size,table);
   M=M/measurements;
@@ -370,8 +372,18 @@ int main(int argc, char **argv)
 
   srand(time(NULL));
 
-  print_Ul(T,step,steps, measures, size,2*size);
-  print_Ul(T,step,steps, measures, 2*size,4*size);
+  printf("M:[");
+  double M=measure_susceptibility(size,1/T,measures);
+  for (int i=0;i<steps;i++) {
+    printf("[%lf,%lf], ", T,M);
+    T=T+step;
+    M=measure_susceptibility(size,1/T,measures);
+  }
+  printf("[%lf,%lf] ", T,M);
+  printf("]\n");
+  
+  //  print_Ul(T,step,steps, measures, size,4*size);
+  //  print_Ul(T,step,steps, measures, 2*size,3*size);
 
   return 0;
 }
