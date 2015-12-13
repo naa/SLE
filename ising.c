@@ -85,8 +85,8 @@ void evolve_table_cyclic_boundary ( int size, int** table, double beta, long lon
   for (long long k = 0; k < niter; k++){
     for (i=0;i<size;i++)
       for (j=0;j<size;j++)
-	//	modify_cell (size,table,rand_int(size-1), rand_int(size-1),beta);
-	modify_cell (size,table,i,j,beta);
+	modify_cell (size,table,rand_int(size-1), rand_int(size-1),beta);
+	//modify_cell (size,table,i,j,beta);
   }
 }
 
@@ -295,7 +295,7 @@ double measure_magnetisation(int size, double beta, int measurements)
 
 double measure_susceptibility(int size,  double beta, int measurements)
 {
-  long long niter=3*100000;//3*size*size;
+  long long niter=size*size*floor(1/fabs(1/beta-2.2698));
   int **table=allocate_2d_array(size);
   init_table_no_boundary(size,table);
 
@@ -303,15 +303,23 @@ double measure_susceptibility(int size,  double beta, int measurements)
   double M=0;
   double Msq=0;
   double mc=0;
+  double Mfourth=0;  
   for (long i=0; i<measurements; i++){
     mc=((double)calc_magnetization(size,table))/(size*size);
-    M=M+mc;
+    M=M+fabs(mc);
     Msq=Msq+mc*mc;
-    evolve_table_cyclic_boundary(size,table,beta,1000);
+    Mfourth=Mfourth+mc*mc*mc*mc;
+
+    evolve_table_cyclic_boundary(size,table,beta,10);
     //    printf("%lf %lf %lf\n",mc,M,Msq);
   }
+  M=M/measurements;
+  Msq=Msq/measurements;
+  Mfourth=Mfourth/measurements;
+  
   free_2d_array(size,table);
-  return beta*(Msq-M*M)/measurements;
+  printf("%lf %lf %lf %lf %lf \n", 1/beta, M, beta*(Msq-M*M), beta*Msq,1.0-1.0/3.0*Mfourth/(Msq*Msq));
+  return beta*(Msq-M*M);
 }
 
 double measure_Ul(int size,  double beta, int measurements)
@@ -372,15 +380,15 @@ int main(int argc, char **argv)
 
   srand(time(NULL));
 
-  printf("M:[");
+  //  printf("M:[\n");
   double M=measure_susceptibility(size,1/T,measures);
   for (int i=0;i<steps;i++) {
-    printf("[%lf,%lf], ", T,M);
+    //    printf("[%lf,%lf], ", T,M);
     T=T+step;
     M=measure_susceptibility(size,1/T,measures);
   }
-  printf("[%lf,%lf] ", T,M);
-  printf("]\n");
+  //  printf("[%lf,%lf] ", T,M);
+  //  printf("]\n");
   
   //  print_Ul(T,step,steps, measures, size,4*size);
   //  print_Ul(T,step,steps, measures, 2*size,3*size);
