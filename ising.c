@@ -56,26 +56,89 @@ void init_table_no_boundary(int size, int ** table)
 {
   for (int i = 0; i < size; i++) {
     for (int j = 0; j < size; j++) { 
-      //      table[i][j] = 2 * (nrand() > 0.5) - 1;
-      table[i][j] = 1;//-1+2*((i+j)%2);
+      table[i][j] = 2 * (nrand() > 0.5) - 1;
+      //table[i][j] = 1;//-1+2*((i+j)%2);
     }
   }
 }
  
 int modify_cell (int size,int **table, int i, int j, double beta)
 {
-  double p1 = exp( beta * (table[mod(i - 1,size)][mod(j,size)] + 
+  if (table[mod(i,size)][mod(j,size)]==0) return 0;
+  double s1,s2;
+  s1=(table[mod(i - 1,size)][mod(j,size)] + 
 			   table[mod(i + 1,size)][mod(j,size)] + 
 			   table[mod(i,size)][mod(j - 1,size)] + 
-			   table[mod(i,size)][mod(j + 1,size)]));
-  double p2 = exp(-beta * (table[mod(i - 1,size)][mod(j,size)] + 
-			   table[mod(i + 1,size)][mod(j,size)] + 
-			   table[mod(i,size)][mod(j - 1,size)] + 
-			   table[mod(i,size)][mod(j + 1,size)]));
-  int nval = 2 * (((p1 + p2) * nrand()) < p1) - 1;
-  int res = (nval != table[mod(i,size)][mod(j,size)]);
-  table[mod(i,size)][mod(j,size)]=nval;
-  return res;
+      table[mod(i,size)][mod(j + 1,size)])*
+    table[mod(i,size)][mod(j,size)];
+  s2=-s1;
+  if ((s2-s1<0) || (nrand()<exp(-beta*(s2-s1))))
+    table[mod(i,size)][mod(j,size)]=-table[mod(i,size)][mod(j,size)];
+  return 0;
+}
+
+void modify_cluster (int size,int **table, int i, int j, double beta)
+{
+  if (table[mod(i,size)][mod(j,size)]==0) return;   
+  int *qx=(int*)malloc(size * size * sizeof(int));
+  int *qy=(int*)malloc(size * size * sizeof(int));  
+  long head=0;					
+  long tail=0;
+  int x,y;
+  long blength=0;
+  int k;
+  int cluster=table[mod(i,size)][mod(j,size)];
+  table[mod(i,size)][mod(j,size)]=3;
+  qx[tail]=i;
+  qy[tail]=j;
+  tail++;
+  while (tail>head) {
+    x=qx[head];
+    y=qy[head];
+    head++;
+    if ((table[mod(x-1,size)][mod(y,size)]==cluster) && (nrand()<1.0-exp(-2*beta))){
+      qx[tail]=mod(x-1,size);
+      qy[tail]=y;
+      table[mod(x-1,size)][mod(y,size)]=3;
+      tail++;
+    } else if (table[mod(x-1,size)][mod(y,size)]==-cluster) {
+      blength++;
+    }
+    if ((table[mod(x+1,size)][mod(y,size)]==cluster) && (nrand()<1.0-exp(-2*beta))){
+      qx[tail]=mod(x+1,size);
+      qy[tail]=y;
+      table[mod(x+1,size)][mod(y,size)]=3;
+      tail++;
+    } else if (table[mod(x+1,size)][mod(y,size)]==-cluster) {
+      blength++;
+    }
+    if ((table[mod(x,size)][mod(y-1,size)]==cluster) && (nrand()<1.0-exp(-2*beta))){
+      qx[tail]=mod(x,size);
+      qy[tail]=mod(y-1,size);
+      table[mod(x,size)][mod(y-1,size)]=3;      
+      tail++;
+    } else if (table[mod(x,size)][mod(y-1,size)]==-cluster) {
+      blength++;
+    }
+    if ((table[mod(x,size)][mod(y+1,size)]==cluster) && (nrand()<1.0-exp(-2*beta))){
+      qx[tail]=mod(x,size);
+      qy[tail]=mod(y+1,size);
+      table[mod(x,size)][mod(y+1,size)]=3;            
+      tail++;
+    } else if (table[mod(x,size)][mod(y+1,size)]==-cluster) {
+      blength++;
+    }
+  }
+  double p1 = exp( beta * blength);
+  double p2 = exp(-beta * blength);
+  //int nval = 2 * (((p1 + p2) * nrand()) < p1) - 1;
+  int nval = -cluster;
+  //  printf("\n%lf %d %d %ld %ld %ld\n", 1/beta, cluster, nval, blength, head, tail);  
+  for (k=0; k<head; k++) {
+    table[qx[k]][qy[k]]=nval;
+  }
+  free(qx);
+  free(qy);
 }
 
 void evolve_table_cyclic_boundary ( int size, int** table, double beta, long long niter ) 
@@ -85,7 +148,8 @@ void evolve_table_cyclic_boundary ( int size, int** table, double beta, long lon
   for (long long k = 0; k < niter; k++){
     for (i=0;i<size;i++)
       for (j=0;j<size;j++)
-	modify_cell (size,table,rand_int(size-1), rand_int(size-1),beta);
+	//modify_cluster (size,table,rand_int(size-1), rand_int(size-1),beta);
+	modify_cell (size,table,rand_int(size), rand_int(size),beta);
 	//modify_cell (size,table,i,j,beta);
   }
 }
@@ -289,15 +353,12 @@ double measure_magnetisation(int size, double beta, int measurements)
   print_table_xpm_simple(F,size,table);
   fclose(F);
 
-  free_2d_array(size,table);
   return M/(measurements);
 }
 
-double measure_susceptibility(int size,  double beta, int measurements)
+double measure_susceptibility(int size, int **table, double beta, int measurements)
 {
-  long long niter=size*size*floor(1/fabs(1/beta-2.2698));
-  int **table=allocate_2d_array(size);
-  init_table_no_boundary(size,table);
+  long long niter=10000; //size*size*floor(1/fabs(1/beta-2.2698));
 
   evolve_table_cyclic_boundary(size,table,beta, niter);
   double M=0;
@@ -310,15 +371,48 @@ double measure_susceptibility(int size,  double beta, int measurements)
     Msq=Msq+mc*mc;
     Mfourth=Mfourth+mc*mc*mc*mc;
 
-    evolve_table_cyclic_boundary(size,table,beta,10);
-    //    printf("%lf %lf %lf\n",mc,M,Msq);
+    evolve_table_cyclic_boundary(size,table,beta,1);
+    printf("%lf ",mc);
+    
   }
   M=M/measurements;
   Msq=Msq/measurements;
   Mfourth=Mfourth/measurements;
   
   free_2d_array(size,table);
-  printf("%lf %lf %lf %lf %lf \n", 1/beta, M, beta*(Msq-M*M), beta*Msq,1.0-1.0/3.0*Mfourth/(Msq*Msq));
+  //  printf("%lf %lf %lf %lf %lf \n", 1/beta, M, beta*(Msq-M*M), beta*Msq,1.0-1.0/3.0*Mfourth/(Msq*Msq));
+  return beta*(Msq-M*M);
+}
+
+
+double measure_susceptibility_cluster(int size, int **table, double beta, int measurements)
+{
+  long long niter=1000;
+  long i;
+
+  for (i=0;i<niter;i++) modify_cluster(size,table,rand_int(size), rand_int(size), beta);
+  
+  double M=0;
+  double Msq=0;
+  double mc=0;
+  double Mfourth=0;  
+  for (long i=0; i<measurements; i++){
+    mc=((double)calc_magnetization(size,table))/(size*size);
+    M=M+fabs(mc);
+    Msq=Msq+mc*mc;
+    Mfourth=Mfourth+mc*mc*mc*mc;
+
+    modify_cluster(size,table,rand_int(size), rand_int(size), beta);
+
+    printf("%lf ",mc);
+    
+  }
+  M=M/measurements;
+  Msq=Msq/measurements;
+  Mfourth=Mfourth/measurements;
+  
+  free_2d_array(size,table);
+  //  printf("%lf %lf %lf %lf %lf \n", 1/beta, M, beta*(Msq-M*M), beta*Msq,1.0-1.0/3.0*Mfourth/(Msq*Msq));
   return beta*(Msq-M*M);
 }
 
@@ -364,6 +458,23 @@ void print_Ul(double T, double step, long steps, long measures, long size1, long
   printf("]\n");
 }
 
+int** init_table_with_p(int size, double p){
+  int **table=allocate_2d_array(size);
+  long num=(long)((1.0-p)*size*size);
+  long i=0,x,y;
+  init_table_no_boundary(size,table);
+  while (i<num) {
+    x=rand_int(size);
+    y=rand_int(size);
+    if (table[x][y]!=0) {
+      table[x][y]=0;
+      i++;
+    }
+  }
+  //  printf("%ld %ld %lf %lf\n", (long)size*size,num, (double)num/(size*size),p);
+  return table;
+}
+
 int main(int argc, char **argv)
 {
   double T=1.5;
@@ -371,22 +482,33 @@ int main(int argc, char **argv)
   int size=50;
   int steps = 100;
   long measures=10000;
-
+  double p=1.0;
+  char *method="";
   if (argc>1) size= atoi(argv[1]);
   if (argc>2) T=atof(argv[2]);
   if (argc>3) step=atof(argv[3]);
   if (argc>4) steps=atoi(argv[4]);
   if (argc>5) measures=atoi(argv[5]);
-
+  if (argc>6) p=atof(argv[6]);
+  if (argc>7) method=argv[7];
   srand(time(NULL));
 
   //  printf("M:[\n");
-  double M=measure_susceptibility(size,1/T,measures);
-  for (int i=0;i<steps;i++) {
-    //    printf("[%lf,%lf], ", T,M);
-    T=T+step;
-    M=measure_susceptibility(size,1/T,measures);
-  }
+  double M=0;
+  if ((strlen(method)==4) && (strcmp("wolf",method)==0))
+    for (int i=0;i<steps;i++) {
+      T=T+step;
+      printf("%lf ",T);
+      measure_susceptibility_cluster(size, init_table_with_p(size,p),1/T,measures);
+      printf("\n");
+    }
+  else
+    for (int i=0;i<steps;i++) {
+      T=T+step;
+      printf("%lf ",T);
+      measure_susceptibility(size, init_table_with_p(size,p),1/T,measures);
+      printf("\n");
+    }
   //  printf("[%lf,%lf] ", T,M);
   //  printf("]\n");
   
