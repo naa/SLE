@@ -2,6 +2,10 @@
 #include <math.h>
 #include <time.h>
 #include <stdlib.h>
+#include <gmp.h>
+
+gmp_randstate_t state;
+mpf_t rop;
 
 int **allocate_2d_array(int size)
 {
@@ -31,12 +35,14 @@ int mod(int x, int m) {
 
 int rand_int(int max) 
 {  
-  return (int)floor(((double) max * rand()) / (RAND_MAX+1.0));
+  return (int)floor(((double) max * gmp_urandomm_ui(state,(long)RAND_MAX+1)) / (RAND_MAX+1.0));
 }
 
 double nrand()
 {
-  return (double)rand() / (double)RAND_MAX ;
+  mpf_urandomb (rop,  state, 256);
+  return mpf_get_d(rop);
+  //  return (double)(gmp_urandomm_ui(state,(long)RAND_MAX+1)) / (double)RAND_MAX ;
 }
 
 void init_table_pm_boundary(int size, int ** table)
@@ -61,22 +67,39 @@ void init_table_no_boundary(int size, int ** table)
     }
   }
 }
- 
+
 int modify_cell (int size,int **table, int i, int j, double beta)
 {
-  if (table[mod(i,size)][mod(j,size)]==0) return 0;
-  double s1,s2;
-  s1=(table[mod(i - 1,size)][mod(j,size)] + 
+  if (table[mod(i,size)][mod(j,size)] ==0) return 0;
+  double p1 = exp( beta * (table[mod(i - 1,size)][mod(j,size)] + 
 			   table[mod(i + 1,size)][mod(j,size)] + 
 			   table[mod(i,size)][mod(j - 1,size)] + 
-      table[mod(i,size)][mod(j + 1,size)])*
-    table[mod(i,size)][mod(j,size)];
-  s2=-s1;
-  if ((s2-s1<0) || (nrand()<exp(-beta*(s2-s1))))
-    table[mod(i,size)][mod(j,size)]=-table[mod(i,size)][mod(j,size)];
-  return 0;
+			   table[mod(i,size)][mod(j + 1,size)]));
+  double p2 = exp(-beta * (table[mod(i - 1,size)][mod(j,size)] + 
+			   table[mod(i + 1,size)][mod(j,size)] + 
+			   table[mod(i,size)][mod(j - 1,size)] + 
+			   table[mod(i,size)][mod(j + 1,size)]));
+  int nval = 2 * (((p1 + p2) * nrand()) < p1) - 1;
+  int res = (nval != table[mod(i,size)][mod(j,size)]);
+  table[mod(i,size)][mod(j,size)]=nval;
+  return res;
 }
 
+//int modify_cell (int size,int **table, int i, int j, double beta)
+//{
+//  if (table[mod(i,size)][mod(j,size)]==0) return 0;
+//  double s1,s2;
+//  s1=(table[mod(i - 1,size)][mod(j,size)] + 
+//      table[mod(i + 1,size)][mod(j,size)] + 
+//      table[mod(i,size)][mod(j - 1,size)] + 
+//      table[mod(i,size)][mod(j + 1,size)])*
+//    table[mod(i,size)][mod(j,size)];
+//  s2=-s1;
+//  if (((s2-s1)<0) || (nrand()<exp(-beta*(s2-s1))))
+//    table[mod(i,size)][mod(j,size)]=-table[mod(i,size)][mod(j,size)];
+//  return 0;
+//}
+//
 void modify_cluster (int size,int **table, int i, int j, double beta)
 {
   if (table[mod(i,size)][mod(j,size)]==0) return;   
@@ -477,6 +500,13 @@ int** init_table_with_p(int size, double p){
 
 int main(int argc, char **argv)
 {
+
+
+
+  gmp_randinit_mt(state);
+  gmp_randseed_ui(state, time(NULL));
+  mpf_init2(rop,256);
+  
   double T=1.5;
   double step=0.01;
   int size=50;
@@ -491,7 +521,7 @@ int main(int argc, char **argv)
   if (argc>5) measures=atoi(argv[5]);
   if (argc>6) p=atof(argv[6]);
   if (argc>7) method=argv[7];
-  srand(time(NULL));
+
 
   //  printf("M:[\n");
   double M=0;
@@ -514,7 +544,7 @@ int main(int argc, char **argv)
   
   //  print_Ul(T,step,steps, measures, size,4*size);
   //  print_Ul(T,step,steps, measures, 2*size,3*size);
-
+  mpf_clear(rop);
   return 0;
 }
 
