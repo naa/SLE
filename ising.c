@@ -7,6 +7,20 @@
 gmp_randstate_t state;
 mpf_t rop;
 
+int square_lattice_dx[]={-1,0,+1,0};
+int square_lattice_dy[]={0,-1,0,+1};
+int square_lattice_neighbors=4;
+
+
+int triangular_lattice_dx[]={-1,0,+1,0,-1,1};
+int triangular_lattice_dy[]={0,-1,0,+1,-1,1};
+int triangular_lattice_neighbors=6;
+
+
+int lattice_neighbors;
+int* lattice_dx;
+int* lattice_dy;
+
 int **allocate_2d_array(int size)
 {
   int **table;
@@ -71,14 +85,12 @@ void init_table_no_boundary(int size, int ** table)
 int modify_cell (int size,int **table, int i, int j, double beta)
 {
   if (table[mod(i,size)][mod(j,size)] ==0) return 0;
-  double p1 = exp( beta * (table[mod(i - 1,size)][mod(j,size)] + 
-			   table[mod(i + 1,size)][mod(j,size)] + 
-			   table[mod(i,size)][mod(j - 1,size)] + 
-			   table[mod(i,size)][mod(j + 1,size)]));
-  double p2 = exp(-beta * (table[mod(i - 1,size)][mod(j,size)] + 
-			   table[mod(i + 1,size)][mod(j,size)] + 
-			   table[mod(i,size)][mod(j - 1,size)] + 
-			   table[mod(i,size)][mod(j + 1,size)]));
+  int k,ns=0;
+  for (k=0; k<lattice_neighbors; k++)
+    ns+=table[mod(i+lattice_dx[k],size)][mod(j+lattice_dy[k],size)];
+
+  double p1 = exp( beta * ns);
+  double p2 = exp(-beta * ns);
   int nval = 2 * (((p1 + p2) * nrand()) < p1) - 1;
   int res = (nval != table[mod(i,size)][mod(j,size)]);
   table[mod(i,size)][mod(j,size)]=nval;
@@ -107,7 +119,7 @@ void modify_cluster (int size,int **table, int i, int j, double beta)
   int *qy=(int*)malloc(size * size * sizeof(int));  
   long head=0;					
   long tail=0;
-  int x,y;
+  int x,y,nx,ny;
   long blength=0;
   int k;
   int cluster=table[mod(i,size)][mod(j,size)];
@@ -119,37 +131,17 @@ void modify_cluster (int size,int **table, int i, int j, double beta)
     x=qx[head];
     y=qy[head];
     head++;
-    if ((table[mod(x-1,size)][mod(y,size)]==cluster) && (nrand()<1.0-exp(-2*beta))){
-      qx[tail]=mod(x-1,size);
-      qy[tail]=y;
-      table[mod(x-1,size)][mod(y,size)]=3;
-      tail++;
-    } else if (table[mod(x-1,size)][mod(y,size)]==-cluster) {
-      blength++;
-    }
-    if ((table[mod(x+1,size)][mod(y,size)]==cluster) && (nrand()<1.0-exp(-2*beta))){
-      qx[tail]=mod(x+1,size);
-      qy[tail]=y;
-      table[mod(x+1,size)][mod(y,size)]=3;
-      tail++;
-    } else if (table[mod(x+1,size)][mod(y,size)]==-cluster) {
-      blength++;
-    }
-    if ((table[mod(x,size)][mod(y-1,size)]==cluster) && (nrand()<1.0-exp(-2*beta))){
-      qx[tail]=mod(x,size);
-      qy[tail]=mod(y-1,size);
-      table[mod(x,size)][mod(y-1,size)]=3;      
-      tail++;
-    } else if (table[mod(x,size)][mod(y-1,size)]==-cluster) {
-      blength++;
-    }
-    if ((table[mod(x,size)][mod(y+1,size)]==cluster) && (nrand()<1.0-exp(-2*beta))){
-      qx[tail]=mod(x,size);
-      qy[tail]=mod(y+1,size);
-      table[mod(x,size)][mod(y+1,size)]=3;            
-      tail++;
-    } else if (table[mod(x,size)][mod(y+1,size)]==-cluster) {
-      blength++;
+    for (k=0; k<lattice_neighbors; k++) {
+      nx=mod(x+lattice_dx[k],size);
+      ny=mod(y+lattice_dy[k],size);      
+      if ((table[nx][ny]==cluster) && (nrand()<1.0-exp(-2*beta))){
+	qx[tail]=nx;
+	qy[tail]=ny;
+	table[nx][ny]=3;
+	tail++;
+      } else if (table[nx][ny]==-cluster) {
+	blength++;
+      }
     }
   }
   double p1 = exp( beta * blength);
@@ -501,8 +493,10 @@ int** init_table_with_p(int size, double p){
 int main(int argc, char **argv)
 {
 
-
-
+  lattice_neighbors=square_lattice_neighbors;
+  lattice_dx=square_lattice_dx;
+  lattice_dy=square_lattice_dy;
+  
   gmp_randinit_mt(state);
   gmp_randseed_ui(state, time(NULL));
   mpf_init2(rop,256);
@@ -521,7 +515,11 @@ int main(int argc, char **argv)
   if (argc>5) measures=atoi(argv[5]);
   if (argc>6) p=atof(argv[6]);
   if (argc>7) method=argv[7];
-
+  if ((argc>8)  && (strlen(argv[8])==6) && (strcmp("triang",argv[8])==0)) {
+    lattice_neighbors=triangular_lattice_neighbors;
+    lattice_dx=triangular_lattice_dx;
+    lattice_dy=triangular_lattice_dy;
+  }
 
   //  printf("M:[\n");
   double M=0;
