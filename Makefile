@@ -1,7 +1,7 @@
 # Customize below to fit your system
 # includes and libs
 INCS = -I. -I/usr/include 
-LIBS = -L/usr/lib -lc -lm
+LIBS = -L/usr/lib -lc -lm -lgmp
 
 # flags
 CFLAGS = -g -std=c99 -pedantic -Wall -O0 ${INCS} ${CPPFLAGS}
