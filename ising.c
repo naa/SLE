@@ -21,6 +21,7 @@ int lattice_neighbors;
 int* lattice_dx;
 int* lattice_dy;
 
+
 int **allocate_2d_array(int size)
 {
   int **table;
@@ -30,6 +31,21 @@ int **allocate_2d_array(int size)
   }
   for (int i = 0; i < size; i++) {
     for (int j = 0; j < size; j++) {
+      table[i][j] = 0;
+    }
+  }
+  return table;
+}
+
+int **allocate_2d_rectangle(int M, int N)
+{
+  int **table;
+  table = (int**)malloc(M * sizeof(int*));
+  for (int i = 0; i < M; i++) {
+    table[i] = (int*)malloc(N * sizeof(int));
+  }
+  for (int i = 0; i < M; i++) {
+    for (int j = 0; j < N; j++) {
       table[i][j] = 0;
     }
   }
@@ -490,9 +506,148 @@ int** init_table_with_p(int size, double p){
   return table;
 }
 
+long min_energy(int M, int N, int** table) {
+  int i, j,k;
+  long e=0;
+
+  for (i=0; i<M; i++) 
+    for (j=0;j<N; j++) 
+        for (k=0; k<lattice_neighbors; k++)
+	  e-=abs(table[i][j]*table[mod(i+lattice_dx[k],M)][mod(j+lattice_dy[k],N)]);
+  return e/2;
+}
+
+long state_energy(int M, int N, int** table) {
+  int i, j,k;
+  long e=0;
+
+  for (i=0; i<M; i++) 
+    for (j=0;j<N; j++) 
+        for (k=0; k<lattice_neighbors; k++)
+	  e-=table[i][j]*table[mod(i+lattice_dx[k],M)][mod(j+lattice_dy[k],N)];
+  return e/2;
+}
+
+void init_with_p(int M, int N, int **table, double p){
+  long num=(long)((1.0-p)*M*N);
+  long i=0,x,y;
+  int j;
+  for ( i = 0; i < M; i++) {
+    for ( j = 0; j < N; j++) { 
+      //      table[i][j] =  2*((i+j)%2)-1;
+      table[i][j]=2 * (nrand() > 0.5) - 1;
+    }
+  }
+  i=0;
+  while (i<num) {
+    x=rand_int(M);
+    y=rand_int(N);
+    if (table[x][y]!=0) {
+      table[x][y]=0;
+      i++;
+    }
+  }
+}
+
+int wang_landau(int M, int N, double p, int energies, double flatness, long Niter, double T0, double Tstep, long Tn) {
+  int **table=allocate_2d_rectangle(M,N);
+  init_with_p(M,N,table,p);
+  double estep;
+  int estat[energies];
+  double edensity[energies];
+  long i;
+  int x,y;
+  int k;
+  long iter=0;
+  long energy, newenergy, minenergy;
+  double maximum, minimum, lnf=1;
+  double prob=0;
+  minenergy=min_energy(M,N,table);
+  estep=-((double)2*minenergy-0.0001)/energies;
+  energy=state_energy(M,N,table);
+  //    printf("%ld %ld %lf %d\n",min_energy(M,N,table),energy, estep, (int)floor((energy-minenergy)/estep));    
+
+  for (k=0;k<energies;k++) {
+    estat[k]=0;
+    edensity[k]=0;
+  }
+    
+  for (i=1;i<1000000000 ; i++) {
+    x=rand_int(M);
+    y=rand_int(N);
+    //    energy=state_energy(M,N,table);    
+    newenergy=energy;
+    for (k=0; k<lattice_neighbors; k++){
+      newenergy+=2*table[x][y]*table[mod(x+lattice_dx[k],M)][mod(y+lattice_dy[k],N)];
+    }
+
+    prob=exp(edensity[(int)floor((energy-minenergy)/estep)]-edensity[(int)floor((newenergy-minenergy)/estep)]);
+    if (nrand()<prob) {
+      table[x][y]=-table[x][y];
+      energy=newenergy;
+      //printf("%lf %ld %ld %lf\n",prob,newenergy,(int)floor((energy-minenergy)/estep),edensity[(int)floor((energy-minenergy)/estep)]);
+    }
+    estat[(int)floor((energy-minenergy)/estep)]+=1;
+    edensity[(int)floor((energy-minenergy)/estep)]+=lnf;
+    //    printf("%ld %lf %d\n",energy,estep,(int)floor((energy-minenergy)/estep));
+    if ((i>1000000) && (i%100000==0)) {
+      maximum=0;
+      minimum=1e100;
+      for (k=0; k<energies; k++) {
+	if (estat[k]!=0) {
+	  if (estat[k]>maximum) maximum=estat[k];
+	  if (estat[k]<minimum) minimum=estat[k];
+	}
+      }
+      //      printf("%lf %lf\n",mean,minimum);
+      
+      if (2*minimum> (maximum+minimum)*flatness) {
+	for (k=0;k<energies;k++)
+	  estat[k]=0;
+	lnf *=0.5;
+	iter++;
+	if (iter>=Niter) break;
+	printf("%ld %lf %ld\n",iter,lnf,i);
+      }
+    }
+  }
+  minimum=1e100;
+  maximum=0;
+  for (k=0;k<energies; k++) {
+    if (estat[k]<minimum) minimum=estat[k];
+    if (edensity[k]>maximum) maximum=edensity[k];    
+  }
+
+  for (k=0;k<energies; k++) {
+    estat[k]-=minimum;
+    edensity[k]-=maximum;
+    printf("%d %ld %lf\n", k, estat[k], edensity[k]);
+  }
+  double w=0, Z=0, Ev=0, E2v=0, cv;
+  double T=T0;
+  for (i=0; i<Tn; i++) {
+    w=0;
+    Z=0;
+    Ev=0;
+    E2v=0;
+    for (k=0;k<energies; k++) {
+      
+      w=exp(edensity[k]-(minenergy+k*estep)/T);
+      Z+=w;
+      Ev+=w*(minenergy+k*estep);
+      E2v +=w*(minenergy+k*estep)*(minenergy+k*estep);
+    }
+    Ev = Ev/Z;
+    cv=(E2v/Z-Ev*Ev)/(T*T);
+    printf("%lf %lf %lf %lf\n", T, Ev/(M*N),cv/(M*N),T*log(Z)/(M*N));
+    T+=Tstep;
+  }
+  printf("%lf\n",lnf);
+  return 0;
+}
+
 int main(int argc, char **argv)
 {
-
   lattice_neighbors=square_lattice_neighbors;
   lattice_dx=square_lattice_dx;
   lattice_dy=square_lattice_dy;
@@ -500,6 +655,9 @@ int main(int argc, char **argv)
   gmp_randinit_mt(state);
   gmp_randseed_ui(state, time(NULL));
   mpf_init2(rop,256);
+  wang_landau(5,25,1.0,20,0.8,5,1.5, 0.05, 30);
+  return 0;
+
   
   double T=1.5;
   double step=0.01;
