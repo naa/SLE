@@ -24,7 +24,7 @@ int wang_landau(int M, int N, double p, double minenergy, double estep, int ener
     edensity[k]=0;
   }
     
-  for (i=1;i<5000000000 ; i++) {
+  for (i=1; ; i++) {
     x=rand_int(M);
     y=rand_int(N);
     //    energy=state_energy(M,N,table);    
