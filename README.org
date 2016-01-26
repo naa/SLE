@@ -1,14 +1,18 @@
 * SLE
 *** About
-    Here is some C code for simulations of interfaces in 2D Ising model. 
-    For now it can be used to produce xpm images.
-    You can use netpbm or imagemagick to convert to more conventional formats. 
+    Here is some C code for simulations of site-diluted and non-diluted 2D Ising models. 
 *** Usage
+Use "ising" for Metropolis and Wolf algorithms, and "wang" for Wang-Landau
 #+BEGIN_EXAMPLE
 make
-./ising <grid size> <beta> <number of iterations> <filename>
+./ising [-M xsize] [-N ysize] [-T temperature] [-S temperature step] [-s number of steps] [-p non-empty probability] [-m measures] [-a algorithm:metropolis|wolf] [-L lattice:square|triang]  name
+./wang [-M xsize] [-N ysize] [-T temperature] [-S temperature step] [-s number of steps] [-p non-empty probability] [-E min_energy] [-e estep] [-k energy_steps] [-f flatness] [-i iterations] [-L lattice:square|triang]  name
 #+END_EXAMPLE
-All the parameters are optional
 
 *** Some links
 ***** [[http://quantumtheory.physik.unibas.ch/bruder/Semesterprojekte2007/p1/index.html][Good overview on Ising model simulations]]
+*** DONE Use getopt for better command line options handling
+    CLOSED: [2016-01-26 Tue 14:02]
+*** TODO Try SLE simulations
+*** DONE Central charge simulations
+    CLOSED: [2016-01-26 Tue 14:02]

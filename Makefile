@@ -11,9 +11,11 @@ LDFLAGS = -g ${LIBS}
 CC = cc
 
 SRC = ising.c
+SRC2 = wang.c
 OBJ = ${SRC:.c=.o}
+OBJ2 = ${SRC2:.c=.o}
 
-all: ising
+all: ising wang
 
 .c.o:
 	@echo CC $<
@@ -22,3 +24,7 @@ all: ising
 ising: ${OBJ}
 	@echo CC -o $@
 	@${CC} -o $@ ${OBJ} ${LDFLAGS}
+
+wang: ${OBJ2}
+	@echo CC -o $@
+	@${CC} -o $@ ${OBJ2} ${LDFLAGS}
