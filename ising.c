@@ -329,7 +329,7 @@ double measure_susceptibility_cluster(int M, int N, int **table, double beta, in
     Mfourth=Mfourth+mc*mc*mc*mc;
 
     modify_cluster(M,N,table,rand_int(M), rand_int(N), beta);
-    E=state_energy(M,N,table);
+    //    E=state_energy(M,N,table);
     //    printf("%lf %ld\n",mc, E);
     
   }
