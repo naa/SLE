@@ -6,6 +6,7 @@ int** init_table_with_delta(int M,int N)
   for (int i = 0; i < M; i++) {
     for (int j = 0; j < N; j++) { 
       table[i][j] = rand_int(3)-1;
+      //      table[i][j] = 1;
       //table[i][j] = 1;//-1+2*((i+j)%2);
     }
   }
@@ -46,23 +47,31 @@ int wang_landau(int M, int N, double delta, double minenergy, double estep, long
   energy=calc_energy(M,N,table,delta);
   //    printf("%ld %ld %lf %d\n",min_energy(M,N,table),energy, estep, (int)floor((energy-minenergy)/estep));    
 
+
   for (k=0;k<energies+2;k++) {
     estat[k]=0;
     edensity[k]=0;
   }
-    
+
+  double c=0.0;
+  double addE=0.0;
+  double t=0;
   while (1) {
     i++;
     x=rand_int(M);
     y=rand_int(N);
     //    energy=state_energy(M,N,table);    
-    newenergy=energy;
+    addE=0;
     newstate=(table[x][y]+1+(nrand()<0.5));
     if (newstate>1) newstate=newstate-3;
     for (k=0; k<lattice_neighbors; k++){
-      newenergy+=(table[x][y]-newstate)*table[mod(x+lattice_dx[k],M)][mod(y+lattice_dy[k],N)];
+      addE+=(table[x][y]-newstate)*table[mod(x+lattice_dx[k],M)][mod(y+lattice_dy[k],N)];
     }
-    newenergy+=delta*(newstate*newstate-table[x][y]*table[x][y]);
+    addE+=delta*(newstate*newstate-table[x][y]*table[x][y]);
+    addE=addE-c;
+    t=energy+addE;
+    c=(t-energy)-addE;
+    newenergy=t;
     
     prob=exp(edensity[INDEX(energy)]-edensity[INDEX(newenergy)]);
     if (nrand()<prob) {
@@ -79,12 +88,12 @@ int wang_landau(int M, int N, double delta, double minenergy, double estep, long
       //      for (k=0; k<energies+2; k++) {
       total=0;
       nume=0;
-      long first=0;
+      long first=-1;
       long last=0;
       long minindex=0;
-      for (k=1;k<energies+1 ; k++) {
+      for (k=0;k<energies+1 ; k++) {
 	if (estat[k]!=0) {// || ((k==0) && (edensity[k]==0))) {
-	  if (first==0) first=k;
+	  if (first==-1) first=k;
 	  last=k;
 	  total+=estat[k];
 	  nume++;
