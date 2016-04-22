@@ -13,20 +13,20 @@ int** init_table_with_delta(int M,int N)
   return table;
 }
 
-double calc_energy(int M,int N,int **table,double delta) {
+long calc_energy(int M,int N,int **table,long delta) {
   int i, j,k;
-  double e=0;
+  long e=0;
 
   for (i=0; i<M; i++) 
     for (j=0;j<N; j++) {
         for (k=0; k<lattice_neighbors; k++)
-	  e-=table[i][j]*table[mod(i+lattice_dx[k],M)][mod(j+lattice_dy[k],N)];
+	  e-=table[i][j]*table[mod(i+lattice_dx[k],M)][mod(j+lattice_dy[k],N)]*10000;
 	e+=2*delta*table[i][j]*table[i][j];
     }
   return e/2;
 }
 
-#define INDEX(e) ((e)<(minenergy)) ? (0) : (((e) > (minenergy+estep*energies)) ? (energies+1) : ((int)ceil((e-minenergy)/estep)))
+#define INDEX(e) ((e)<(minenergy)) ? (0) : (((e) > (minenergy+estep*energies)) ? (energies+1) : ((e-minenergy)/estep))
 
 int wang_landau(int M, int N, long delta, long long minenergy, long estep, long energies, double flatness, long Niter, double T0, double Tstep, long Tn) {
   int **table=init_table_with_delta(M,N);
@@ -53,6 +53,9 @@ int wang_landau(int M, int N, long delta, long long minenergy, long estep, long 
     edensity[k]=0;
   }
 
+  //  estat[0]=1;
+  //  edensity[0]=lnf;
+  
   while (1) {
     i++;
     x=rand_int(M);
