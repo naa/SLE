@@ -5,8 +5,8 @@ int** init_table_with_delta(int M,int N)
   int **table=allocate_2d_rectangle(M,N);
   for (int i = 0; i < M; i++) {
     for (int j = 0; j < N; j++) { 
-      table[i][j] = rand_int(3)-1;
-      //      table[i][j] = 1;
+      //      table[i][j] = rand_int(3)-1;
+      table[i][j] = (rand_int(10)>1)? 1:0;
       //table[i][j] = 1;//-1+2*((i+j)%2);
     }
   }
@@ -45,6 +45,12 @@ int wang_landau(int M, int N, long delta, long long minenergy, long estep, long 
   //  minenergy=min_energy(M,N,table);
   //  estep=-((double)2*minenergy-0.0001)/energies;
   energy=calc_energy(M,N,table,delta);
+  while ((INDEX(energy)<0) || (INDEX(energy)>energies)) {
+    fprintf(stderr,"energy: %ld, index: %ld\n",energy,INDEX(energy));
+    free_2d_array(M,table);    
+    table=init_table_with_delta(M,N);
+    energy=calc_energy(M,N,table,delta);
+  }
   //    printf("%ld %ld %lf %d\n",min_energy(M,N,table),energy, estep, (int)floor((energy-minenergy)/estep));    
 
 
@@ -57,7 +63,7 @@ int wang_landau(int M, int N, long delta, long long minenergy, long estep, long 
   //  edensity[0]=lnf;
   
   while (1) {
-    i++;
+
     x=rand_int(M);
     y=rand_int(N);
     newenergy=energy;
@@ -68,7 +74,9 @@ int wang_landau(int M, int N, long delta, long long minenergy, long estep, long 
       newenergy+=(table[x][y]-newstate)*table[mod(x+lattice_dx[k],M)][mod(y+lattice_dy[k],N)]*10000;
     }
     newenergy+=delta*(newstate*newstate-table[x][y]*table[x][y]);
-    
+    if (INDEX(newenergy)>energies) continue;
+
+    i++;    
     prob=exp(edensity[INDEX(energy)]-edensity[INDEX(newenergy)]);
     if (nrand()<prob) {
       table[x][y]=newstate;
@@ -88,7 +96,7 @@ int wang_landau(int M, int N, long delta, long long minenergy, long estep, long 
       long last=0;
       long minindex=0;
       for (k=0;k<energies+1 ; k++) {
-	if (estat[k]!=0) {// || ((k==0) && (edensity[k]==0))) {
+	if (edensity[k]>0) {// || ((k==0) && (edensity[k]==0))) {
 	  if (first==-1) first=k;
 	  last=k;
 	  total+=estat[k];
@@ -97,7 +105,7 @@ int wang_landau(int M, int N, long delta, long long minenergy, long estep, long 
 	  if (estat[k]<minimum) { minimum=estat[k]; minindex=k; }
 	}
       }
-      
+
       if (i%1000000==0)   fprintf(stderr,"i:%ld, %ld steps, %lf %lf, %ld of %ld, first: %ld, last: %ld, min energy: %lf, max energy: %lf, min index: %ld\n",iter, i,total/nume,minimum, nume, energies,first,last,minenergy/10000.0+estep*first/10000.0,minenergy/10000.0+estep*last/10000.0,minindex);
       
       if (minimum> total/nume*flatness) {
@@ -115,7 +123,8 @@ int wang_landau(int M, int N, long delta, long long minenergy, long estep, long 
 
   for (k=0;k<energies+2; k++) {
     if ((estat[k]!=0) && (edensity[k]<minimum)) minimum=edensity[k];
-    printf("%lf %ld %lf\n", (minenergy+estep*k)/10000.0, estat[k], edensity[k]);    
+    if (edensity[k]>0)
+      printf("%lf %ld %lf\n", (minenergy+estep*k)/10000.0, estat[k], edensity[k]);    
   }
   if (iter<Niter) printf("Not enough steps: %ld %lf %ld\n",iter,lnf,i);	
   //  printf("Thermodynamics:\n");
@@ -225,15 +234,19 @@ int main(int argc, char **argv)
   }
   if (minenergy==0) 
     minenergy=M*N*(-20000+delta);
-  long long maxenergy=M*N*(20000+delta);
+  //  long long maxenergy=M*N*(20000+delta);
+  long long maxenergy=-(minenergy*10);
   if ((estep==0) && (energy_steps!=0))
     estep=(maxenergy-minenergy)/energy_steps;
   else if ((estep!=0) && (energy_steps==0))
     energy_steps=(long)((maxenergy-minenergy)/estep);
-  else {
-    estep=5000;
+  else if ((estep!=0) && (energy_steps!=0)) {
+    maxenergy=minenergy+estep*energy_steps;
+  } else {
+    estep=10000;
     energy_steps=(long)((maxenergy-minenergy)/estep)+1;
   }
+  fprintf(stderr,"mine:%ld, estep:%ld, energy_steps:%ld, maxe:%ld\n", minenergy, estep, energy_steps, maxenergy);
   wang_landau(M,N,delta,minenergy, estep, energy_steps, flatness, iter, T, step, steps);
   return 0;
 }
