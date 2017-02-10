@@ -59,7 +59,7 @@ int main(int argc, char **argv)
   while(err!=EOF){
     err=scanf("{");
 
-    index=(long)(floor((t-from)/step));
+
     visits=(long *)calloc(steps,sizeof(long));
     xin=(double*)calloc(steps,sizeof(double));
     yn=(double*)calloc(steps,sizeof(double));
@@ -69,7 +69,7 @@ int main(int argc, char **argv)
     len=0;
     while((err=scanf("{%lf,%lf,%lf},",&t,&xi,&y))==3) {
 
-      
+      index=(long)(floor((t-from)/step));      
       //      fprintf(stderr,"%ld %.10g %.10g %.10g\n",index,t,xi,y);      
       if ((index>=0) && (index<steps)) {
 	visits[index]++;
@@ -84,12 +84,12 @@ int main(int argc, char **argv)
     if (len>=minlen) {
       for (i=0;i<steps;i++) {
 	if (visits[i]>0) {
-	  allvisits[i]++;
-	  allxin[i]+=xin[i]/visits[i];
-	  allyn[i]+=yn[i]/visits[i];
-	  allxinsquare[i]+=(xin[i]/visits[i])*(xin[i]/visits[i]); //xinsquare[i]/visits[i];
-	  allynsquare[i]+=(yn[i]/visits[i])*(yn[i]/visits[i]);//ynsquare[i]/visits[i];
-	  allxinyn[i]+=(xin[i]/visits[i])*(yn[i]/visits[i]);
+	  allvisits[i]+=visits[i];
+	  allxin[i]+=xin[i];
+	  allyn[i]+=yn[i];
+	  allxinsquare[i]+=xinsquare[i]; //xinsquare[i]/visits[i];
+	  allynsquare[i]+=ynsquare[i];//ynsquare[i]/visits[i];
+	  allxinyn[i]+=xinyn[i];
 	}
       }
     }
