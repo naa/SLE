@@ -195,14 +195,14 @@ interface get_interface(int M, int N, int **table)
   int c1, c2;
   int dualx=0, dualy=0;
   result.len=0;
-  result.points=(double complex*)malloc(M*N*sizeof(doulbe complex));
+  result.points=(double complex*)malloc(M*N*sizeof(double complex));
   
   for (x1 = 0; (x1 < M - 1) && (table[x1][0] == table[x1 + 1][0]); x1++) {}
   x2 = x1 + 1; 
   y1 = 0; 
   y2 = 0; 
   for (int k = 0; (k==0)|| (((y2 > 0) || (y1 > 0))  && (k < M * N)); k++)    {
-    result.points[len]=dualx+I*dualy;
+    result.points[result.len]=dualx+I*dualy;
 
     dx = x2 - x1; dy = y2 - y1;
     dualx-=dy; dualy+=dx;
@@ -215,25 +215,22 @@ interface get_interface(int M, int N, int **table)
     if ((3 * c1 + c2) == (3 * (-1) + (+1))) {x1 = x1 - dy; y1 = y1 + dx; x2 = x2 - dy; y2 = y2 + dx;}
     if ((3 * c1 + c2) == (3 * (+1) + (-1))) {x1 = x2 - dy; y1 = y2 + dx;}
   }
-  result.points[len]=dualx+I*dualy;
+  result.points[result.len]=dualx+I*dualy;
   result.len++;  
   return result;
 }
 
-void print_interface_to_file(FILE* f, interface inter)
-{
-  long i;
-  fprintf(f,"{");
-  for (i=0; i<inter.len-1; i++)
-    fprintf(f, "{%lf, %lf},", creal(inter.points[i]), cimag(inter.points[i]));
-  fprintf(f, "{%lf, %lf}}\n", creal(inter.points[inter.len-1]), cimag(inter.points[inter.len-1]));  
-}
 
 double complex sqrt_upper(double complex z)
 {
   double complex res=csqrt(z);
   if (cimag(res)<0) return -res;
   return res;
+}
+
+double complex gt(double complex zp, double complex z)
+{
+  return (double complex)(creal(zp))+sqrt_upper((z-creal(zp))*(z-creal(zp))+cimag(zp)*cimag(zp));
 }
 
 interface uniformize_interface(interface inter)
@@ -244,14 +241,61 @@ interface uniformize_interface(interface inter)
   memcpy(result.points, inter.points, inter.len*sizeof(double complex));
   long i,j;
 
-  for (i=0; i<res.len; i++)
-    for (j=i+1;j<res.len;j++)
-      res.points[j]=creal(res.points[i])+
+  for (i=0; i<result.len; i++)
+    for (j=i+1;j<result.len;j++)
+      result.points[j]=gt(result.points[i],result.points[j]);
+      /*      res.points[j]=creal(res.points[i])+
 	sqrt_upper((res.points[j]-creal(res.points[i]))*(res.points[j]-creal(res.points[i]))+
 		   cimag(res.points[i])*cimag(res.points[i]));
-
-  return res;
+      */
+  return result;
 }
+
+interface prebrown_interface(double xinf,interface inter)
+{
+  interface result;
+  result.len=inter.len;
+  result.points=(double complex*)malloc(inter.len*sizeof(double complex));
+  long i;
+  double re,im;
+  re=0;
+  im=0;
+  
+  for (i=0;i<inter.len;i++){
+    re+=0.25*cimag(inter.points[i])*cimag(inter.points[i])/(creal(inter.points[i])-creal(gt(inter.points[i],xinf)));
+    result.points[i]=(double complex)re+I*cimag(inter.points[i]);
+  }
+  return result;
+}
+
+void print_interface_to_file(FILE* f, interface inter)
+{
+  long i;
+  fprintf(f,"{");
+  for (i=0; i<inter.len-1; i++)
+    fprintf(f, "{%.10g, %.10g},", creal(inter.points[i]), cimag(inter.points[i]));
+  fprintf(f, "{%.10g, %.10g}}", creal(inter.points[inter.len-1]), cimag(inter.points[inter.len-1]));  
+}
+
+void print_interface_as_ts_to_file(FILE* f, interface inter_in)
+{
+  long i;
+  double xinf=creal(inter_in.points[inter_in.len-1]);
+  double t=0;
+  interface inter=uniformize_interface(inter_in);
+  interface prebrown=prebrown_interface(xinf,inter);
+  fprintf(f,"{");
+  for (i=0; i<inter.len-1; i++) {
+    t=t+0.25*cimag(inter.points[i])*cimag(inter.points[i]);
+    fprintf(f, "{%.10g, %.10g, %.10g},", t, creal(inter.points[i]), creal(prebrown.points[i]));
+  }
+  t=t+cimag(inter.points[i+1])*cimag(inter.points[i+1])/4.0;  
+  fprintf(f, "{%.10g, %.10g, %.10g}}", t, creal(inter.points[i+1]), creal(prebrown.points[i+1]));
+  free(prebrown.points);
+  free(inter.points);  
+}
+
+
 
 long long  print_interface(int M, int N, int **table)
 {
@@ -535,18 +579,32 @@ void generate_interfaces(int M, int N, int **table, double beta, int measurement
   long long niter=(long long)((double)(M*10)*log(M)); //size*size*floor(1/fabs(1/beta-2.2698));
   long long i,j;
   long long len;
+  interface inter;
+  //  interface uniform;
   init_table_pm_third_boundary(M,N,table);
   for (i=0;i<niter;i++) modify_cluster_bc(M,N,table,1+rand_int(M-2), 1+rand_int(N-2), beta);
   printf("{");
+  fprintf(stderr,"{");  
   for (i=0;i<measurements; i++){
-    print_interface(M,N, table);
+    inter=get_interface(M,N,table);
+    print_interface_to_file(stderr, inter);
+
+    //    uniform=uniformize_interface(inter);
+    //    print_interface_to_file(stderr, uniform);
+
+    print_interface_as_ts_to_file(stdout, inter);
+    
+    free(inter.points);
+    //    free(uniform.points);        
     if (i<measurements-1){    
       for (j=0;j<M/10;j++)
 	modify_cluster_bc(M,N,table,1+rand_int(M-2), 1+rand_int(N-2), beta);
       printf(",\n");
+      fprintf(stderr,",\n");
     }
   }
   printf("}");
+  fprintf(stderr,"}");  
   free_2d_array(M,table);
 }
 

@@ -84,12 +84,12 @@ int main(int argc, char **argv)
     if (len>=minlen) {
       for (i=0;i<steps;i++) {
 	if (visits[i]>0) {
-	  allvisits[i]+=visits[i];
-	  allxin[i]+=xin[i];
-	  allyn[i]+=yn[i];
-	  allxinsquare[i]+=xinsquare[i]; //xinsquare[i]/visits[i];
-	  allynsquare[i]+=ynsquare[i];//ynsquare[i]/visits[i];
-	  allxinyn[i]+=xinyn[i];
+	  allvisits[i]++;
+	  allxin[i]+=xin[i]/visits[i];
+	  allyn[i]+=yn[i]/visits[i];
+	  allxinsquare[i]+=xinsquare[i]/visits[i]; //xinsquare[i]/visits[i];
+	  allynsquare[i]+=ynsquare[i]/visits[i];//ynsquare[i]/visits[i];
+	  allxinyn[i]+=xinyn[i]/visits[i];
 	}
       }
     }

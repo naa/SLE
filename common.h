@@ -77,7 +77,7 @@ double nrand()
   //  return (double)(gmp_urandomm_ui(state,(long)RAND_MAX+1)) / (double)RAND_MAX ;
 }
 
-void init_table_pm_boundary(int M, int N, int ** table)
+void init_table_pm_boundary(int M, int N,int** table)
 {
   for (int i = 0; i < M; i++) {
     for (int j = 0; j < N; j++) { 
@@ -85,6 +85,19 @@ void init_table_pm_boundary(int M, int N, int ** table)
       if (( i == 0 ) || ( ( j == N-1 ) && ( i < M - 1)))
 	table[i][j]=-1;
       if (( i == N-1 ) || (( j == 0 ) && ( i > 0 )))
+	table[i][j]=1;
+    }
+  }
+}
+
+void init_table_pm_third_boundary(int M, int N,int** table)
+{
+  for (int i = 0; i < M; i++) {
+    for (int j = 0; j < N; j++) { 
+      table[i][j] = 2 * (nrand() > 0.5) - 1;
+      if (( i == 0 ) || ( i==M-1) || ( (j==0) && ((i<M/3) || (i>2*M/3)) ) || ( ( j == N-1 ) && ( i < M - 1)))
+	table[i][j]=-1;
+      if(( j == 0 ) && (( i >= M/3 ) && (i<=2*M/3)))
 	table[i][j]=1;
     }
   }
