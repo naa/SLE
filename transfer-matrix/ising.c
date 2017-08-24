@@ -41,7 +41,7 @@ int main(int argc, char **argv)
     }
   }
 
-  double *lnZ;
+  double *lnZ, *lnZbar;
   //  double *lnZbar;
   int twotoM;
   long double Z;
@@ -53,29 +53,32 @@ int main(int argc, char **argv)
     for (j=0; j<twotoM;j++){
       lnZ[j]=0;
       for (l=0;l<M-1;l++) {
-	lnZ[j]+=2/T*(((j>>l)%2)^(((~j)>>(l+1))%2));
+	lnZ[j]+=2.0/T*(double)(((j>>l)%2)^(((~j)>>(l+1))%2));
       }
-      lnZ[j]+=2/T*(((j>>(M-1))%2)^((~j)&1))-M/T;
+      lnZ[j]+=2.0/T*(double)(((j>>(M-1))%2)^((~j)&1))-(double)M/T;
       //      printf("%d %lf\n",j,lnZ[j]);
     }
     for (k=0;k<N; k++) {
       for (l=0;l<M;l++) {
+	lnZbar=(double*)malloc(twotoM*sizeof(double));  	
 	for (j=0;j<twotoM;j++) {
-	  lnZ[j]=1/T+lnZ[j]+log(1+exp(-2/T+lnZ[j^(1<<l)]-lnZ[j]));
+	  lnZbar[j]=1/T+lnZ[j]+log(1+exp(-2/T+lnZ[j^(1<<l)]-lnZ[j]));
 	}
+	free(lnZ);
+	lnZ=lnZbar; 
       }
       for (j=0; j<twotoM;j++){      
 	for (l=0;l<M-1;l++) {
-	  lnZ[j]+=2/T*(((j>>l)%2)^(((~j)>>(l+1))%2));
+	  lnZ[j]+=2.0/T*(double)(((j>>l)%2)^(((~j)>>(l+1))%2));
 	}
-	lnZ[j]+=2/T*((((~j)>>(M-1))%2)^((~j)&1))-M/T;
+	lnZ[j]+=2.0/T*(double)(((j>>(M-1))%2)^((~j)&1))-(double)M/T;
       }
     }
     Z=0.0;
     for (j=0;j<twotoM;j++) {
       Z+=expl(lnZ[j]);
     }
-    printf("%d %lf %lf\n",M,T,-(double)(logl(Z)*T/(M*N)));
+    printf("%d %lf %lf\n",M,T,-(double)(logl(Z)*T/(double)(M*N)));
     T=T+step;
   }
   return 0;
