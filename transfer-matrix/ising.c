@@ -48,7 +48,7 @@ int main(int argc, char **argv)
   twotoM=1<<M;
   lnZ=(double*)malloc(twotoM*sizeof(double));
   //  lnZbar=(double*)malloc(twotoM*sizeof(double));  
-  int i,j,k,l;
+  unsigned int i,j,k,l;
   for (i=0;i<steps;i++) {
     for (j=0; j<twotoM;j++){
       lnZ[j]=0;
