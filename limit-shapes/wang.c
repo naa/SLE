@@ -48,11 +48,11 @@ long state_energy_dimers(int M, int N, int** table) {
 
 
 
-int wang_landau(int M, int N, int K, double minenergy, double estep, int energies, double flatness, long Niter, double T0, double Tstep, long Tn) {
+int wang_landau(int M, int N, int K, long minenergy, long estep, long energies, double flatness, long Niter, double T0, double Tstep, long Tn) {
 
   int **table=allocate_2d_rectangle(M,N);
 
-  init_with_min_dimers(M,N,table,K);
+  init_with_dimers(M,N,table,K);
 
   long estat[energies+2];
   double edensity[energies];
@@ -106,7 +106,7 @@ int wang_landau(int M, int N, int K, double minenergy, double estep, int energie
     //    printf("%ld %lf %d\n",energy,estep,(int)floor((energy-minenergy)/estep));
 
 
-    if ((i>100000) && (i%10000==0)) {
+    if ((i>1000000) && (i%100000==0)) {
       maximum=0;
       minimum=1e100;
       //      for (k=0; k<energies+2; k++) {
@@ -119,14 +119,14 @@ int wang_landau(int M, int N, int K, double minenergy, double estep, int energie
 	if (edensity[k]>0) {// || ((k==0) && (edensity[k]==0))) {
 	  if (first==-1) first=k;
 	  last=k;
-	  total+=estat[k];
+	  total+=(double)(estat[k]);
 	  nume++;
 	  //	  if (estat[k]>maximum) maximum=estat[k];
 	  if (estat[k]<minimum) { minimum=estat[k]; minindex=k; }
 	}
       }
 
-      if (i%1000000==0)   fprintf(stderr,"i:%ld, %ld steps, %lf %lf, %ld of %ld, first: %ld, last: %ld, min energy: %lf, max energy: %lf, min index: %ld\n",iter, i,total/nume,minimum, nume, energies,first,last,minenergy+estep*first,minenergy+estep*last,minindex);
+      if (i%1000000==0)   fprintf(stderr,"i:%ld, %ld steps, %lf %lf, %ld of %ld, first: %ld, last: %ld, min energy: %ld, max energy: %ld, min index: %ld\n",iter, i,total/((double)nume),minimum, nume, energies,first,last,minenergy+estep*first,minenergy+estep*last,minindex);
       
       if (minimum> total/nume*flatness) {
 	lnf *=0.5;
@@ -164,7 +164,7 @@ int wang_landau(int M, int N, int K, double minenergy, double estep, int energie
 
   for (k=0;k<energies+2; k++) {
     if ((estat[k]!=0) && (edensity[k]<minimum)) minimum=edensity[k];
-    printf("%lf %ld %lf\n", minenergy+estep*k, estat[k], edensity[k]);    
+    printf("%ld %ld %lf\n", minenergy+estep*k, estat[k], edensity[k]);    
   }
   if (iter<Niter) printf("Not enough steps: %ld %lf %ld\n",iter,lnf,i);	
   //  printf("Thermodynamics:\n");
@@ -244,10 +244,10 @@ int main(int argc, char **argv)
       steps = atoi(optarg);
       break;
     case 'E':
-      minenergy=atof(optarg);
+      minenergy=atoi(optarg);
       break;
     case 'e':
-      estep=atof(optarg);
+      estep=atoi(optarg);
       break;
     case 'k':
       energy_steps=atol(optarg);
