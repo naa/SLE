@@ -2,6 +2,19 @@
 
 #define INDEX(e) ((e)<(minenergy)) ? (0) : (((e) > (minenergy+estep*energies)) ? (energies+1) : ((int)ceil((e-minenergy)/estep)))
 
+int contsignal=0;
+
+#include<signal.h>
+#include<unistd.h>
+
+void sig_handler(int signo)
+{
+  if (signo == SIGINT) {
+    fprintf(stderr,"received SIGINT\n");
+    contsignal=1;
+  }
+}
+
 
 void init_with_dimers(int M, int N, int **table, int K){
   int i,j;
@@ -13,7 +26,7 @@ void init_with_dimers(int M, int N, int **table, int K){
       if (((i==0) &&(j==0)) || ((i==M-1) && (j==N-1))) nv=table[i][j];
       else if (i==0)  nv=1+rand_int(table[i][j-1]);
       else if (j==0)  nv=1+rand_int(table[i-1][j]);
-      else nv==rand_int(1+(table[i-1][j]<table[i][j-1] ? table[i-1][j]:table[i][j-1]));
+      else nv=rand_int(1+(table[i-1][j]<table[i][j-1] ? table[i-1][j]:table[i][j-1]));
       table[i][j]=nv;
     }
   }
@@ -29,7 +42,7 @@ void init_with_min_dimers(int M, int N, int **table, int K){
       if (((i==0) &&(j==0)) || ((i==M-1) && (j==N-1))) nv=table[i][j];
       else if (i==0)  nv=1;
       else if (j==0)  nv=1;
-      else nv==0;
+      else nv=0;
       table[i][j]=nv;
     }
   }
@@ -116,7 +129,8 @@ int wang_landau(int M, int N, int K, long minenergy, long estep, long energies, 
       long last=0;
       long minindex=0;
       for (k=0;k<energies+1 ; k++) {
-	if (edensity[k]>0) {// || ((k==0) && (edensity[k]==0))) {
+	//	if (edensity[k]>0) {// || ((k==0) && (edensity[k]==0))) {
+	if (estat[k]>0) {
 	  if (first==-1) first=k;
 	  last=k;
 	  total+=(double)(estat[k]);
@@ -128,7 +142,8 @@ int wang_landau(int M, int N, int K, long minenergy, long estep, long energies, 
 
       if (i%1000000==0)   fprintf(stderr,"i:%ld, %ld steps, %lf %lf, %ld of %ld, first: %ld, last: %ld, min energy: %ld, max energy: %ld, min index: %ld\n",iter, i,total/((double)nume),minimum, nume, energies,first,last,minenergy+estep*first,minenergy+estep*last,minindex);
       
-      if (minimum> total/nume*flatness) {
+      if ((minimum> total/nume*flatness) || (contsignal)) {
+	contsignal=0;
 	lnf *=0.5;
 	iter++;
 	fprintf(stderr, "iteration %ld %lf %ld\n",iter,lnf,i);	
@@ -273,6 +288,9 @@ int main(int argc, char **argv)
     }
   }
   //  fprintf(stderr, "%d %d %d %lf %lf %ld %lf %d %lf %lf %d",M,N,K,minenergy, estep, energy_steps, flatness, iter, T, step, steps);
+  if (signal(SIGINT, sig_handler) == SIG_ERR)
+    fprintf(stderr,"\ncan't catch SIGINT\n");
+  
   wang_landau(M,N,K,minenergy, estep, energy_steps, flatness, iter, T, step, steps);
   return 0;
 }
