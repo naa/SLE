@@ -24,8 +24,8 @@ void init_with_dimers(int M, int N, int **table, int K){
   for (i=0;i<M;i++) {
     for (j=0;j<N;j++) {
       if (((i==0) &&(j==0)) || ((i==M-1) && (j==N-1))) nv=table[i][j];
-      else if (i==0)  nv=1+rand_int(table[i][j-1]);
-      else if (j==0)  nv=1+rand_int(table[i-1][j]);
+      else if (i==0)  nv=1+rand_int(table[i][j-1] < K-1 ? table[i][j-1]: K-1);
+      else if (j==0)  nv=1+rand_int(table[i-1][j] < K-1 ? table[i-1][j]: K-1);
       else nv=rand_int(1+(table[i-1][j]<table[i][j-1] ? table[i-1][j]:table[i][j-1]));
       table[i][j]=nv;
     }
@@ -58,6 +58,15 @@ long state_energy_dimers(int M, int N, int** table) {
   return e;
 }
 
+void print_table (FILE* F, int M, int N, int **table)
+{
+  for (int i = 0; i < M; i++) {
+    for (int j = 0; j < N; j++) {
+	fprintf(F, "%d ",table[i][j]); 
+    }
+    fprintf(F, "\n");
+  }
+}
 
 
 
@@ -66,7 +75,7 @@ int wang_landau(int M, int N, int K, long minenergy, long estep, long energies, 
   int **table=allocate_2d_rectangle(M,N);
 
   init_with_dimers(M,N,table,K);
-
+  print_table(stderr,M,N,table);
   long estat[energies+2];
   double edensity[energies];
   long i;
@@ -98,10 +107,11 @@ int wang_landau(int M, int N, int K, long minenergy, long estep, long energies, 
 
 
       if (((x==0)&&(y==0)) || ((x==M-1) && (y==N-1))) continue; 
-      if ((x==0) && (y==N-1) && (newheight<=table[x][y-1])) break;
-      if ((x==0) && (newheight<=table[x][y-1]) && (newheight>=table[x][y+1])) break;
-      if ((y==0) && (x==M-1) && (newheight<=table[x-1][y])) break;
-      if ((y==0) && (newheight<=table[x-1][y]) && (newheight>=table[x+1][y])) break;       
+      if ((x==0) && (y==N-1) && ((newheight<=0)|| (newheight>=K))) continue;
+      if ((x==M-1) && (y==0) && ((newheight<=0)|| (newheight>=K))) continue;       
+      //      if ((x==0) && (newheight<=table[x][y-1]) && (newheight>=table[x][y+1]) && (newheight>=table[x+1][y])) break;
+      //      if ((y==0) && (x==M-1) && (newheight<=table[x-1][y]) && (newheight>=table[x][y+1])) break;
+      //      if ((y==0) && (newheight<=table[x-1][y]) && (newheight>=table[x+1][y]) && (newheight>=table[x][y+1])) break;       
       if (((x==0) || (newheight<=table[x-1][y])) &&
 	  ((y==0) || (newheight<=table[x][y-1])) &&
 	  ((x==M-1) || (newheight>=table[x+1][y])) &&
