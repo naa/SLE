@@ -105,10 +105,13 @@ int wang_landau(int M, int N, int K, long minenergy, long estep, long energies, 
       newenergy=energy+2 * (nrand() > 0.5) - 1;
       newheight=table[x][y]+newenergy-energy;
 
+      if ((newheight<0)|| (newheight>K)) continue;      
 
-      if (((x==0)&&(y==0)) || ((x==M-1) && (y==N-1))) continue; 
-      if ((x==0) && (y==N-1) && ((newheight<=0)|| (newheight>=K))) continue;
-      if ((x==M-1) && (y==0) && ((newheight<=0)|| (newheight>=K))) continue;       
+//      if (((x==0)&&(y==0)) || ((x==M-1) && (y==N-1))) continue; 
+//      if ((x==0) && (y==N-1) && ((newheight<=0)|| (newheight>=K))) continue;
+//      if ((x==M-1) && (y==0) && ((newheight<=0)|| (newheight>=K))) continue;
+//
+      
       //      if ((x==0) && (newheight<=table[x][y-1]) && (newheight>=table[x][y+1]) && (newheight>=table[x+1][y])) break;
       //      if ((y==0) && (x==M-1) && (newheight<=table[x-1][y]) && (newheight>=table[x][y+1])) break;
       //      if ((y==0) && (newheight<=table[x-1][y]) && (newheight>=table[x+1][y]) && (newheight>=table[x][y+1])) break;       
