@@ -54,7 +54,8 @@ long state_energy_dimers(int M, int N, int** table) {
 
   for (i=0; i<M; i++) 
     for (j=0;j<N; j++)
-      e+=table[i][j];
+      if (table[i][j]>=0)
+	e+=table[i][j];
   return e;
 }
 
@@ -68,13 +69,18 @@ void print_table (FILE* F, int M, int N, int **table)
   }
 }
 
+void read_table (FILE* F, int M, int N, int **table)
+{
+  for (int i = 0; i < M; i++) {
+    for (int j = 0; j < N; j++) {
+      fscanf(F, " %d",&(table[i][j])); 
+    }
+  }
+}
 
 
-int wang_landau(int M, int N, int K, long minenergy, long estep, long energies, double flatness, long Niter, double T0, double Tstep, long Tn) {
+int wang_landau(int M, int N, int **table, int K, long minenergy, long estep, long energies, double flatness, long Niter, double T0, double Tstep, long Tn) {
 
-  int **table=allocate_2d_rectangle(M,N);
-
-  init_with_dimers(M,N,table,K);
   print_table(stderr,M,N,table);
   long estat[energies+2];
   double edensity[energies];
@@ -115,10 +121,10 @@ int wang_landau(int M, int N, int K, long minenergy, long estep, long energies, 
       //      if ((x==0) && (newheight<=table[x][y-1]) && (newheight>=table[x][y+1]) && (newheight>=table[x+1][y])) break;
       //      if ((y==0) && (x==M-1) && (newheight<=table[x-1][y]) && (newheight>=table[x][y+1])) break;
       //      if ((y==0) && (newheight<=table[x-1][y]) && (newheight>=table[x+1][y]) && (newheight>=table[x][y+1])) break;       
-      if (((x==0) || (newheight<=table[x-1][y])) &&
-	  ((y==0) || (newheight<=table[x][y-1])) &&
-	  ((x==M-1) || (newheight>=table[x+1][y])) &&
-	  ((y==N-1) || (newheight>=table[x][y+1]))) break;
+      if (((x==0) || (table[x-1][y]<0) || (newheight<=table[x-1][y])) &&
+	  ((y==0) || (table[x][y-1]<0) || (newheight<=table[x][y-1])) &&
+	  ((x==M-1) || (table[x+1][y]<0) || (newheight>=table[x+1][y])) &&
+	  ((y==N-1) || (table[x][y+1]<0) || (newheight>=table[x][y+1]))) break;
 
     }
     prob=exp(edensity[INDEX(energy)]-edensity[INDEX(newenergy)]);
@@ -250,8 +256,9 @@ int main(int argc, char **argv)
 
   double flatness=0.8;
   int iter=5;
+  char* fname="";
   
-  while ((opt = getopt(argc, argv, "M:N:K:T:S:s:E:e:k:f:i:L:")) != -1) {
+  while ((opt = getopt(argc, argv, "M:N:K:T:S:s:E:e:k:f:i:L:F:")) != -1) {
     switch (opt) {
     case 'M':
       M=atoi(optarg);
@@ -293,9 +300,11 @@ int main(int argc, char **argv)
 	lattice_dy=triangular_lattice_dy;
       }
       break;
-      
+    case 'F':
+      fname=optarg;
+      break;
     default: /* '?' */
-      fprintf(stderr, "Usage: %s [-M xsize] [-N ysize] [-K zsize] [-T temperature] [-S temperature step] [-s number of steps] [-E min_energy] [-e estep] [-k energy_steps] [-f flatness] [-i iterations] [-L lattice:square|triang] \n",
+      fprintf(stderr, "Usage: %s [-M xsize] [-N ysize] [-K zsize] [-T temperature] [-S temperature step] [-s number of steps] [-E min_energy] [-e estep] [-k energy_steps] [-f flatness] [-i iterations] [-L lattice:square|triang] [-F initial_data_file_name] \n",
 	      argv[0]);
       exit(EXIT_FAILURE);
     }
@@ -303,7 +312,14 @@ int main(int argc, char **argv)
   //  fprintf(stderr, "%d %d %d %lf %lf %ld %lf %d %lf %lf %d",M,N,K,minenergy, estep, energy_steps, flatness, iter, T, step, steps);
   if (signal(SIGINT, sig_handler) == SIG_ERR)
     fprintf(stderr,"\ncan't catch SIGINT\n");
-  
-  wang_landau(M,N,K,minenergy, estep, energy_steps, flatness, iter, T, step, steps);
+
+
+  int **table=allocate_2d_rectangle(M,N);
+  FILE* input=fopen(fname,"r");
+  if (input!=NULL)
+    read_table(input,M,N,table);
+  else
+    init_with_dimers(M,N,table,K);
+  wang_landau(M,N,table,K,minenergy, estep, energy_steps, flatness, iter, T, step, steps);
   return 0;
 }
