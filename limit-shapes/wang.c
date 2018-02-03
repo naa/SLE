@@ -67,6 +67,7 @@ void print_table (FILE* F, int M, int N, int **table)
     }
     fprintf(F, "\n");
   }
+    fprintf(F, "\n");  
 }
 
 void read_table (FILE* F, int M, int N, int **table)
@@ -102,16 +103,20 @@ int wang_landau(int M, int N, int **table, int K, long minenergy, long estep, lo
     estat[k]=0;
     edensity[k]=0;
   }
-    
+
+  //  estat[INDEX(energy)]+=1;
+  //  edensity[INDEX(energy)]+=lnf;
+  
   for (i=1; ; i++) {
-    while(1) {
+    //    while(1) {
       x=rand_int(M);
       y=rand_int(N);
 
       newenergy=energy+2 * (nrand() > 0.5) - 1;
       newheight=table[x][y]+newenergy-energy;
 
-      if ((newheight<0)|| (newheight>K)) continue;      
+      //      if ((newheight<0)|| (newheight>K)) continue;
+      //      else break;
 
 //      if (((x==0)&&(y==0)) || ((x==M-1) && (y==N-1))) continue; 
 //      if ((x==0) && (y==N-1) && ((newheight<=0)|| (newheight>=K))) continue;
@@ -121,24 +126,32 @@ int wang_landau(int M, int N, int **table, int K, long minenergy, long estep, lo
       //      if ((x==0) && (newheight<=table[x][y-1]) && (newheight>=table[x][y+1]) && (newheight>=table[x+1][y])) break;
       //      if ((y==0) && (x==M-1) && (newheight<=table[x-1][y]) && (newheight>=table[x][y+1])) break;
       //      if ((y==0) && (newheight<=table[x-1][y]) && (newheight>=table[x+1][y]) && (newheight>=table[x][y+1])) break;       
-      if (((x==0) || (table[x-1][y]<0) || (newheight<=table[x-1][y])) &&
-	  ((y==0) || (table[x][y-1]<0) || (newheight<=table[x][y-1])) &&
-	  ((x==M-1) || (table[x+1][y]<0) || (newheight>=table[x+1][y])) &&
-	  ((y==N-1) || (table[x][y+1]<0) || (newheight>=table[x][y+1]))) break;
 
-    }
-    prob=exp(edensity[INDEX(energy)]-edensity[INDEX(newenergy)]);
+      //    }
+      if ((newheight<0)|| (newheight>K))
+	prob=0;
+      else if (((x==0) || (table[x-1][y]<0) || (newheight<=table[x-1][y])) &&
+	       ((y==0) || (table[x][y-1]<0) || (newheight<=table[x][y-1])) &&
+	       ((x==M-1) || (table[x+1][y]<0) || (newheight>=table[x+1][y])) &&
+	       ((y==N-1) || (table[x][y+1]<0) || (newheight>=table[x][y+1]))) 
+	prob=exp(edensity[INDEX(energy)]-edensity[INDEX(newenergy)]);
+      else
+	prob=0;
+    //fprintf(stderr, "%lf %ld %ld %lf\n",prob,newenergy,(int)floor((energy-minenergy)/estep),edensity[(int)floor((energy-minenergy)/estep)]);
+    
     if (nrand()<prob) {
       table[x][y]=newheight;
       energy=newenergy;
-      //printf("%lf %ld %ld %lf\n",prob,newenergy,(int)floor((energy-minenergy)/estep),edensity[(int)floor((energy-minenergy)/estep)]);
+      //      print_table(stderr,M,N,table);      
     }
     estat[INDEX(energy)]+=1;
     edensity[INDEX(energy)]+=lnf;
     //    printf("%ld %lf %d\n",energy,estep,(int)floor((energy-minenergy)/estep));
 
 
-    if ((i>1000000) && (i%100000==0)) {
+    if ((i>100*M*N) && (i%(10*M*N)==0)) {
+
+    //    if ((i>10) && (i%10==0)) {      
       maximum=0;
       minimum=1e100;
       //      for (k=0; k<energies+2; k++) {
@@ -159,7 +172,7 @@ int wang_landau(int M, int N, int **table, int K, long minenergy, long estep, lo
 	}
       }
 
-      if (i%1000000==0)   fprintf(stderr,"i:%ld, %ld steps, %lf %lf, %ld of %ld, first: %ld, last: %ld, min energy: %ld, max energy: %ld, min index: %ld\n",iter, i,total/((double)nume),minimum, nume, energies,first,last,minenergy+estep*first,minenergy+estep*last,minindex);
+      if (i%(1000*M*N)==0)   fprintf(stderr,"i:%ld, %ld steps, %lf %lf, %ld of %ld, first: %ld, last: %ld, min energy: %ld, max energy: %ld, min index: %ld\n",iter, i,total/((double)nume),minimum, nume, energies,first,last,minenergy+estep*first,minenergy+estep*last,minindex);
       
       if ((minimum> total/nume*flatness) || (contsignal)) {
 	contsignal=0;
